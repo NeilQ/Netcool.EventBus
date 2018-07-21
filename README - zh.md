@@ -1,18 +1,17 @@
-(中文README)[README - zh]
 # Netcool.EventBus
-An EventBus base on Asp.net core 2.1 and RabbitMq. 
+一个基于Asp.net core 2.1与RabbitMq的事件总线。
 
-Most of codes retrived from (dotnet-architecture/eShopOnContainers)[https://github.com/dotnet-architecture/eShopOnContainers], however there are some changes:
-- Replace Autofac with default asp.net core ioc container.
-- Add some extention methods for adding event bus.
-- Delayed to create rabbitmq channel for event publish.
-- Class name changed.
+大部分代码来自于 (dotnet-architecture/eShopOnContainers)[https://github.com/dotnet-architecture/eShopOnContainers]， 并且做了一些改动:
+- 用asp.net core内置的ioc container替换了Autofac。
+- 添加了一些便于注册事件总线的扩展方法
+- RabbitMq EventBus的Publish方法将延迟创建连接Channel。
+- 修改了一些类名。
 
-## Install
+## 安装
 
-You can find it at nuget.org with id `Netcool.EventBus`.
+你可以在nuget.org搜索`Netcool.EventBus`找到它。
 
-## Add RabbitMq EventBus
+## 添加 RabbitMq 事件总线
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
@@ -30,7 +29,7 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-## Add Custom EventBus
+## 添加自定义事件总线
 
 ```csharp
 public void ConfigureServices(IServiceCollection services)
@@ -40,9 +39,9 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-**!important: You must Add any LoggerProvider**
+**!注意: 你必须在Asp.net core项目中启用Logging**
 
-## Publish
+## 发布
 
 ```csharp
 public class UserLoginEvent:Event
@@ -68,8 +67,7 @@ public class ValuesController : ControllerBase
 }
 ```
 
-## Subscribe
-
+## 订阅 
 ```csharp
 public class UserLoginEventHandler : IEventHandler<UserLoginEvent>
 {
