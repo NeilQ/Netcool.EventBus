@@ -1,4 +1,4 @@
-[中文README](README - zh.md)
+[中文README](README - zh)
 
 # Netcool.EventBus
 An EventBus base on Asp.net core 2.1 and RabbitMq. 

@@ -1,7 +1,7 @@
 # Netcool.EventBus
 一个基于Asp.net core 2.1与RabbitMq的事件总线。
 
-大部分代码来自于 (dotnet-architecture/eShopOnContainers)[https://github.com/dotnet-architecture/eShopOnContainers]， 并且做了一些改动:
+大部分代码来自于 [dotnet-architecture/eShopOnContainers](https://github.com/dotnet-architecture/eShopOnContainers)， 并且做了一些改动:
 - 用asp.net core内置的ioc container替换了Autofac。
 - 添加了一些便于注册事件总线的扩展方法
 - RabbitMq EventBus的Publish方法将延迟创建连接Channel。
