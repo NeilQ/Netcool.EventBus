@@ -1,8 +1,9 @@
-(中文README)[README - zh]
+[中文README](README - zh)
+
 # Netcool.EventBus
 An EventBus base on Asp.net core 2.1 and RabbitMq. 
 
-Most of codes retrived from (dotnet-architecture/eShopOnContainers)[https://github.com/dotnet-architecture/eShopOnContainers], however there are some changes:
+Most of codes retrived from [dotnet-architecture/eShopOnContainers](https://github.com/dotnet-architecture/eShopOnContainers), however there are some changes:
 - Replace Autofac with default asp.net core ioc container.
 - Add some extention methods for adding event bus.
 - Delayed to create rabbitmq channel for event publish.
