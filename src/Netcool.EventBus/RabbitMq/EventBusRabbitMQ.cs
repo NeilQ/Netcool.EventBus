@@ -64,6 +64,7 @@ namespace Netcool.EventBus
 
         public void Publish(Event @event)
         {
+            _consumerChannel = CreateConsumerChannel();
             if (!_persistentConnection.IsConnected)
             {
                 _persistentConnection.TryConnect();
