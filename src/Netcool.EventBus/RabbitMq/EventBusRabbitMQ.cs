@@ -186,8 +186,9 @@ namespace Netcool.EventBus
             return channel;
         }
 
-        private async Task ProcessEvent(string eventName, string message)
+        private async Task<bool> ProcessEvent(string eventName, string message)
         {
+            var processed = false;
             if (_subsManager.HasSubscriptionsForEvent(eventName))
             {
                 using (var scope = _services.CreateScope())
@@ -214,7 +215,10 @@ namespace Netcool.EventBus
                         }
                     }
                 }
+                processed = true;
             }
+
+            return processed;
         }
     }
 }
