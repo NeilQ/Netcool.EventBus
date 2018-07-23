@@ -24,7 +24,6 @@ namespace Netcool.EventBus
         private IModel _consumerChannel;
         private readonly string _queueName;
         private readonly string _exchangeType;
-        private bool _channelCreated => _consumerChannel != null && _consumerChannel.IsOpen;
 
         private readonly IServiceProvider _services;
 
@@ -65,7 +64,6 @@ namespace Netcool.EventBus
 
         public void Publish(Event @event)
         {
-            _consumerChannel = CreateConsumerChannel();
             if (!_persistentConnection.IsConnected)
             {
                 _persistentConnection.TryConnect();
@@ -154,7 +152,7 @@ namespace Netcool.EventBus
 
         private IModel CreateConsumerChannel()
         {
-            if (_channelCreated) return _consumerChannel;
+            if (_consumerChannel != null) return _consumerChannel;
             if (!_persistentConnection.IsConnected)
             {
                 _persistentConnection.TryConnect();
