@@ -30,8 +30,7 @@ namespace Netcool.EventBus
             {
                 HostName = options.CurrentValue.HostName,
                 UserName = options.CurrentValue.UserName,
-                Password = options.CurrentValue.Password,
-
+                Password = options.CurrentValue.Password
             };
             _retryCount = options.CurrentValue.RetryCount;
         }

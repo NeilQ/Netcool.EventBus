@@ -16,20 +16,20 @@ namespace Netcool.EventBus
 {
     public class EventBusRabbitMq : IEventBus, IDisposable
     {
-        private readonly string _brokerName;
         private readonly IRabbitMqPersistentConnection _persistentConnection;
         private readonly ILogger<EventBusRabbitMq> _logger;
         private readonly IEventBusSubscriptionsManager _subsManager;
-        private readonly int _retryCount;
         private IModel _consumerChannel;
-        private readonly string _queueName;
+        private bool _queueDeclared;
         private readonly string _exchangeType;
+
+        private readonly EventBusRabbitMqOptions _options;
 
         private readonly IServiceProvider _services;
 
         public EventBusRabbitMq(
             IServiceProvider services,
-            IOptionsMonitor<EventBusRabbitMqOptions> options,
+            IOptions<EventBusRabbitMqOptions> options,
             IRabbitMqPersistentConnection persistentConnection, ILogger<EventBusRabbitMq> logger,
             IEventBusSubscriptionsManager subsManager)
         {
@@ -37,9 +37,9 @@ namespace Netcool.EventBus
             _services = services;
             _persistentConnection = persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));
             _subsManager = subsManager ?? new EventBusSubscriptionsManager();
-            _queueName = options.CurrentValue.QueueName;
-            _retryCount = options.CurrentValue.RetryCount;
-            _brokerName = options.CurrentValue.BrokerName ?? "event_bus";
+
+            _options = options.Value;
+
             _exchangeType = "direct";
             _subsManager.OnEventRemoved += SubsManager_OnEventRemoved;
         }
@@ -52,8 +52,8 @@ namespace Netcool.EventBus
             }
             using (var channel = _persistentConnection.CreateModel())
             {
-                channel.QueueUnbind(queue: _queueName,
-                    exchange: _brokerName,
+                channel.QueueUnbind(queue: _options.QueueName,
+                    exchange: _options.BrokerName,
                     routingKey: eventName);
                 if (_subsManager.IsEmpty)
                 {
@@ -64,14 +64,13 @@ namespace Netcool.EventBus
 
         public void Publish(Event @event)
         {
-            _consumerChannel = CreateConsumerChannel();
             if (!_persistentConnection.IsConnected)
             {
                 _persistentConnection.TryConnect();
             }
             var policy = Policy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
-                .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
+                .WaitAndRetry(_options.RetryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
                 {
                     _logger.LogWarning(ex.ToString());
                 });
@@ -79,7 +78,7 @@ namespace Netcool.EventBus
             {
                 var eventName = @event.GetType()
                     .Name;
-                channel.ExchangeDeclare(exchange: _brokerName,
+                channel.ExchangeDeclare(exchange: _options.BrokerName,
                                     type: _exchangeType);
                 var message = JsonConvert.SerializeObject(@event);
                 var body = Encoding.UTF8.GetBytes(message);
@@ -87,7 +86,7 @@ namespace Netcool.EventBus
                 {
                     var properties = channel.CreateBasicProperties();
                     properties.DeliveryMode = 2; // persistent
-                    channel.BasicPublish(exchange: _brokerName,
+                    channel.BasicPublish(exchange: _options.BrokerName,
                                      routingKey: eventName,
                                      mandatory: true,
                                      basicProperties: properties,
@@ -125,8 +124,8 @@ namespace Netcool.EventBus
                 }
                 using (var channel = _persistentConnection.CreateModel())
                 {
-                    channel.QueueBind(queue: _queueName,
-                                      exchange: _brokerName,
+                    channel.QueueBind(queue: _options.QueueName,
+                                      exchange: _options.BrokerName,
                                       routingKey: eventName);
                 }
             }
@@ -151,6 +150,18 @@ namespace Netcool.EventBus
             _subsManager.Clear();
         }
 
+        private void InitQueueDeclare(IModel channel)
+        {
+            if (_queueDeclared) return;
+            channel.QueueDeclare(queue: _options.QueueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+            _queueDeclared = true;
+            _logger.LogInformation($"Queue [{_options.QueueName}] declared");
+        }
+
         private IModel CreateConsumerChannel()
         {
             if (_consumerChannel != null) return _consumerChannel;
@@ -159,22 +170,25 @@ namespace Netcool.EventBus
                 _persistentConnection.TryConnect();
             }
             var channel = _persistentConnection.CreateModel();
-            channel.ExchangeDeclare(exchange: _brokerName,
-                                 type: "direct");
-            channel.QueueDeclare(queue: _queueName,
-                                 durable: true,
-                                 exclusive: false,
-                                 autoDelete: false,
-                                 arguments: null);
+            channel.ExchangeDeclare(exchange: _options.BrokerName,
+                                 type: _exchangeType);
+            InitQueueDeclare(channel);
             var consumer = new EventingBasicConsumer(channel);
             consumer.Received += async (model, ea) =>
             {
                 var eventName = ea.RoutingKey;
                 var message = Encoding.UTF8.GetString(ea.Body);
-                await ProcessEvent(eventName, message);
-                channel.BasicAck(ea.DeliveryTag, multiple: false);
+                var processed = await ProcessEvent(eventName, message);
+                if (processed)
+                {
+                    channel.BasicAck(ea.DeliveryTag, multiple: false);
+                }
+                else
+                {
+                    channel.BasicNack(ea.DeliveryTag, false, true);
+                }
             };
-            channel.BasicConsume(queue: _queueName,
+            channel.BasicConsume(queue: _options.QueueName,
                                  autoAck: false,
                                  consumer: consumer);
             channel.CallbackException += (sender, ea) =>
@@ -214,8 +228,8 @@ namespace Netcool.EventBus
                             await (Task)concreteType.GetMethod("Handle").Invoke(handler, new[] { integrationEvent });
                         }
                     }
-                    processed = true;
                 }
+                processed = true;
             }
 
             return processed;

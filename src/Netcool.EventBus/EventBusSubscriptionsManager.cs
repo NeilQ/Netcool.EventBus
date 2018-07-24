@@ -7,13 +7,13 @@ namespace Netcool.EventBus
     public class EventBusSubscriptionsManager : IEventBusSubscriptionsManager
     {
         private readonly Dictionary<string, List<SubscriptionInfo>> _handlers;
-        private readonly List<Type> _eventTypes;
+        private readonly Dictionary<string, Type> _eventTypes;
         public event EventHandler<string> OnEventRemoved;
 
         public EventBusSubscriptionsManager()
         {
             _handlers = new Dictionary<string, List<SubscriptionInfo>>();
-            _eventTypes = new List<Type>();
+            _eventTypes = new Dictionary<string, Type>();
         }
 
         public bool IsEmpty => !_handlers.Keys.Any();
@@ -32,7 +32,7 @@ namespace Netcool.EventBus
         {
             var eventName = GetEventKey<T>();
             DoAddSubscription(typeof(TH), eventName, false);
-            _eventTypes.Add(typeof(T));
+            _eventTypes.Add(eventName, typeof(T));
         }
 
         private void DoAddSubscription(Type handlerType, string eventName, bool isDynamic)
@@ -75,10 +75,9 @@ namespace Netcool.EventBus
                 if (!_handlers[eventName].Any())
                 {
                     _handlers.Remove(eventName);
-                    var eventType = _eventTypes.SingleOrDefault(e => e.Name == eventName);
-                    if (eventType != null)
+                    if (_eventTypes.ContainsKey(eventName))
                     {
-                        _eventTypes.Remove(eventType);
+                        _eventTypes.Remove(eventName);
                     }
                     RaiseOnEventRemoved(eventName);
                 }
@@ -129,7 +128,7 @@ namespace Netcool.EventBus
 
         public bool HasSubscriptionsForEvent(string eventName) => _handlers.ContainsKey(eventName);
 
-        public Type GetEventTypeByName(string eventName) => _eventTypes.SingleOrDefault(t => t.Name == eventName);
+        public Type GetEventTypeByName(string eventName) => _eventTypes[eventName];
 
         public string GetEventKey<T>()
         {
