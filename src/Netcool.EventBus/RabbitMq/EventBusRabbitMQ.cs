@@ -214,8 +214,8 @@ namespace Netcool.EventBus
                             await (Task)concreteType.GetMethod("Handle").Invoke(handler, new[] { integrationEvent });
                         }
                     }
+                    processed = true;
                 }
-                processed = true;
             }
 
             return processed;

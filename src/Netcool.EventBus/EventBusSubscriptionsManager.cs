@@ -95,11 +95,7 @@ namespace Netcool.EventBus
 
         private void RaiseOnEventRemoved(string eventName)
         {
-            var handler = OnEventRemoved;
-            if (handler != null)
-            {
-                OnEventRemoved?.Invoke(this, eventName);
-            }
+            OnEventRemoved?.Invoke(this, eventName);
         }
 
         private SubscriptionInfo FindDynamicSubscriptionToRemove<TH>(string eventName)
