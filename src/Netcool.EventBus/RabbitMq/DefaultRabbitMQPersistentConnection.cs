@@ -65,6 +65,11 @@ namespace Netcool.EventBus
             _logger.LogInformation("RabbitMQ Client is trying to connect");
             lock (_syncRoot)
             {
+                if (IsConnected)
+                {
+                    // prevent duplicated concurrent re-connection
+                    return true;
+                }
                 var policy = Policy.Handle<SocketException>()
                     .Or<BrokerUnreachableException>()
                     .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
