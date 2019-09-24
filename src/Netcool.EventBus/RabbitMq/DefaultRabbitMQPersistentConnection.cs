@@ -63,6 +63,7 @@ namespace Netcool.EventBus
         public bool TryConnect()
         {
             _logger.LogInformation("RabbitMQ Client is trying to connect");
+
             lock (_syncRoot)
             {
                 if (IsConnected)
@@ -74,20 +75,20 @@ namespace Netcool.EventBus
                     .Or<BrokerUnreachableException>()
                     .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
                     {
-                        _logger.LogWarning(ex.ToString());
+                        _logger.LogWarning(ex, "RabbitMQ Client could not connect after {TimeOut}s ({ExceptionMessage})", $"{time.TotalSeconds:n1}", ex.Message);
                     }
                 );
-                policy.Execute(() =>
-                {
-                    _connection = _connectionFactory
-                          .CreateConnection();
-                });
+
+                policy.Execute(() => { _connection = _connectionFactory.CreateConnection(); });
+
                 if (IsConnected)
                 {
                     _connection.ConnectionShutdown += OnConnectionShutdown;
                     _connection.CallbackException += OnCallbackException;
                     _connection.ConnectionBlocked += OnConnectionBlocked;
-                    _logger.LogInformation($"RabbitMQ persistent connection acquired a connection {_connection.Endpoint.HostName} and is subscribed to failure events");
+
+                    _logger.LogInformation("RabbitMQ acquired a persistent connection to '{HostName}' and is subscribed to failure events", _connection.Endpoint.HostName);
+
                     return true;
                 }
 

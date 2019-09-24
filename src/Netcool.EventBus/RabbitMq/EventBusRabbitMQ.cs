@@ -68,20 +68,24 @@ namespace Netcool.EventBus
             {
                 _persistentConnection.TryConnect();
             }
+
             var policy = Policy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
-                .WaitAndRetry(_options.RetryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
-                {
-                    _logger.LogWarning(ex.ToString());
-                });
+                .WaitAndRetry(_options.RetryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    (ex, time) =>
+                    {
+                        _logger.LogWarning(ex,
+                            "Could not publish event: {EventId} after {Timeout}s ({ExceptionMessage})", @event.Id,
+                            $"{time.TotalSeconds:n1}", ex.Message);
+                    });
             using (var channel = _persistentConnection.CreateModel())
             {
-                var eventName = @event.GetType()
-                    .Name;
-                channel.ExchangeDeclare(exchange: _options.BrokerName,
-                                    type: _exchangeType);
+                var eventName = @event.GetType().Name;
+                channel.ExchangeDeclare(exchange: _options.BrokerName, type: _exchangeType);
+
                 var message = JsonConvert.SerializeObject(@event);
                 var body = Encoding.UTF8.GetBytes(message);
+
                 policy.Execute(() =>
                 {
                     var properties = channel.CreateBasicProperties();
@@ -100,6 +104,8 @@ namespace Netcool.EventBus
         {
             _consumerChannel = CreateConsumerChannel();
             DoInternalSubscription(eventName);
+
+            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName, typeof(TH).GetGenericTypeName());
             _subsManager.AddDynamicSubscription<TH>(eventName);
         }
 
@@ -107,9 +113,12 @@ namespace Netcool.EventBus
             where T : Event
             where TH : IEventHandler<T>
         {
+
             _consumerChannel = CreateConsumerChannel();
             var eventName = _subsManager.GetEventKey<T>();
             DoInternalSubscription(eventName);
+
+            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName, typeof(TH).GetGenericTypeName());
             _subsManager.AddSubscription<T, TH>();
         }
 
@@ -135,12 +144,15 @@ namespace Netcool.EventBus
             where TH : IEventHandler<T>
             where T : Event
         {
+            var eventName = _subsManager.GetEventKey<T>();
+            _logger.LogInformation("Unsubscribing from event {EventName}", eventName);
             _subsManager.RemoveSubscription<T, TH>();
         }
 
         public void UnsubscribeDynamic<TH>(string eventName)
             where TH : IDynamicEventHandler
         {
+            _logger.LogInformation("Unsubscribing from event {EventName}", eventName);
             _subsManager.RemoveDynamicSubscription<TH>(eventName);
         }
 
@@ -173,12 +185,22 @@ namespace Netcool.EventBus
             channel.ExchangeDeclare(exchange: _options.BrokerName,
                                  type: _exchangeType);
             InitQueueDeclare(channel);
-            var consumer = new EventingBasicConsumer(channel);
+            var consumer = new AsyncEventingBasicConsumer(channel);
             consumer.Received += async (model, ea) =>
             {
                 var eventName = ea.RoutingKey;
                 var message = Encoding.UTF8.GetString(ea.Body);
-                var processed = await ProcessEvent(eventName, message);
+
+                var processed = false;
+                try
+                {
+                    processed = await ProcessEvent(eventName, message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "----- ERROR Processing message \"{Message}\"", message);
+                }
+
                 if (processed)
                 {
                     channel.BasicAck(ea.DeliveryTag, multiple: false);
@@ -217,6 +239,8 @@ namespace Netcool.EventBus
                                 throw new NullReferenceException($"Cannot find EventHandler, type {subscription.HandlerType.Name}");
                             }
                             dynamic eventData = JObject.Parse(message);
+
+                            await Task.Yield();
                             await handler.Handle(eventData);
                         }
                         else
@@ -225,6 +249,8 @@ namespace Netcool.EventBus
                             var integrationEvent = JsonConvert.DeserializeObject(message, eventType);
                             var handler = scope.ServiceProvider.GetRequiredService(subscription.HandlerType);
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
+
+                            await Task.Yield();
                             await (Task)concreteType.GetMethod("Handle").Invoke(handler, new[] { integrationEvent });
                         }
                     }
