@@ -52,7 +52,7 @@ namespace Netcool.EventBus
             _disposed = true;
             try
             {
-                _connection.Dispose();
+                _connection?.Dispose();
             }
             catch (IOException ex)
             {
