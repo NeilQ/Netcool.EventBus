@@ -20,7 +20,6 @@ namespace Netcool.EventBus
         private readonly ILogger<EventBusRabbitMq> _logger;
         private readonly IEventBusSubscriptionsManager _subsManager;
         private IModel _consumerChannel;
-        private bool _queueDeclared;
         private readonly string _exchangeType;
 
         private readonly EventBusRabbitMqOptions _options;
@@ -35,12 +34,13 @@ namespace Netcool.EventBus
         {
             _logger = logger;
             _services = services;
-            _persistentConnection = persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));
+            _persistentConnection =
+                persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));
             _subsManager = subsManager ?? new EventBusSubscriptionsManager();
 
             _options = options.Value;
-
             _exchangeType = "direct";
+            _consumerChannel = CreateConsumerChannel();
             _subsManager.OnEventRemoved += SubsManager_OnEventRemoved;
         }
 
@@ -50,6 +50,7 @@ namespace Netcool.EventBus
             {
                 _persistentConnection.TryConnect();
             }
+
             using (var channel = _persistentConnection.CreateModel())
             {
                 channel.QueueUnbind(queue: _options.QueueName,
@@ -91,10 +92,10 @@ namespace Netcool.EventBus
                     var properties = channel.CreateBasicProperties();
                     properties.DeliveryMode = 2; // persistent
                     channel.BasicPublish(exchange: _options.BrokerName,
-                                     routingKey: eventName,
-                                     mandatory: true,
-                                     basicProperties: properties,
-                                     body: body);
+                        routingKey: eventName,
+                        mandatory: true,
+                        basicProperties: properties,
+                        body: body);
                 });
             }
         }
@@ -102,24 +103,25 @@ namespace Netcool.EventBus
         public void SubscribeDynamic<TH>(string eventName)
             where TH : IDynamicEventHandler
         {
-            _consumerChannel = CreateConsumerChannel();
             DoInternalSubscription(eventName);
 
-            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName, typeof(TH).GetGenericTypeName());
+            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName,
+                typeof(TH).GetGenericTypeName());
             _subsManager.AddDynamicSubscription<TH>(eventName);
+            StartBasicConsume();
         }
 
         public void Subscribe<T, TH>()
             where T : Event
             where TH : IEventHandler<T>
         {
-
-            _consumerChannel = CreateConsumerChannel();
             var eventName = _subsManager.GetEventKey<T>();
             DoInternalSubscription(eventName);
 
-            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName, typeof(TH).GetGenericTypeName());
+            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName,
+                typeof(TH).GetGenericTypeName());
             _subsManager.AddSubscription<T, TH>();
+            StartBasicConsume();
         }
 
         private void DoInternalSubscription(string eventName)
@@ -131,11 +133,12 @@ namespace Netcool.EventBus
                 {
                     _persistentConnection.TryConnect();
                 }
+
                 using (var channel = _persistentConnection.CreateModel())
                 {
                     channel.QueueBind(queue: _options.QueueName,
-                                      exchange: _options.BrokerName,
-                                      routingKey: eventName);
+                        exchange: _options.BrokerName,
+                        routingKey: eventName);
                 }
             }
         }
@@ -162,63 +165,81 @@ namespace Netcool.EventBus
             _subsManager.Clear();
         }
 
-        private void InitQueueDeclare(IModel channel)
+        private void StartBasicConsume()
         {
-            if (_queueDeclared) return;
+            _logger.LogTrace("Starting RabbitMQ basic consume");
+
+            if (_consumerChannel != null)
+            {
+                var consumer = new EventingBasicConsumer(_consumerChannel);
+
+                consumer.Received += Consumer_Received;
+
+                _consumerChannel.BasicConsume(
+                    queue: _options.QueueName,
+                    autoAck: false,
+                    consumer: consumer);
+            }
+            else
+            {
+                _logger.LogError("StartBasicConsume can't call on _consumerChannel == null");
+            }
+        }
+
+        private async void Consumer_Received(object model, BasicDeliverEventArgs ea)
+        {
+            var eventName = ea.RoutingKey;
+            var message = Encoding.UTF8.GetString(ea.Body);
+
+            var processed = false;
+            try
+            {
+                processed = await ProcessEvent(eventName, message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "----- ERROR Processing message \"{Message}\"", message);
+            }
+
+            if (processed)
+            {
+                _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
+            }
+            else
+            {
+                _consumerChannel.BasicNack(ea.DeliveryTag, false, true);
+            }
+        }
+
+        private IModel CreateConsumerChannel()
+        {
+            if (!_persistentConnection.IsConnected)
+            {
+                _persistentConnection.TryConnect();
+            }
+
+            _logger.LogTrace("Creating RabbitMQ consumer channel");
+            var channel = _persistentConnection.CreateModel();
+
+            channel.ExchangeDeclare(exchange: _options.BrokerName,
+                type: _exchangeType);
             channel.QueueDeclare(queue: _options.QueueName,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
                 arguments: null);
-            _queueDeclared = true;
             _logger.LogInformation($"Queue [{_options.QueueName}] declared");
-        }
 
-        private IModel CreateConsumerChannel()
-        {
-            if (_consumerChannel != null) return _consumerChannel;
-            if (!_persistentConnection.IsConnected)
-            {
-                _persistentConnection.TryConnect();
-            }
-            var channel = _persistentConnection.CreateModel();
-            channel.ExchangeDeclare(exchange: _options.BrokerName,
-                                 type: _exchangeType);
-            InitQueueDeclare(channel);
-            var consumer = new AsyncEventingBasicConsumer(channel);
-            consumer.Received += async (model, ea) =>
-            {
-                var eventName = ea.RoutingKey;
-                var message = Encoding.UTF8.GetString(ea.Body);
-
-                var processed = false;
-                try
-                {
-                    processed = await ProcessEvent(eventName, message);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "----- ERROR Processing message \"{Message}\"", message);
-                }
-
-                if (processed)
-                {
-                    channel.BasicAck(ea.DeliveryTag, multiple: false);
-                }
-                else
-                {
-                    channel.BasicNack(ea.DeliveryTag, false, true);
-                }
-            };
-            channel.BasicConsume(queue: _options.QueueName,
-                                 autoAck: false,
-                                 consumer: consumer);
             channel.CallbackException += (sender, ea) =>
             {
+                _logger.LogWarning(ea.Exception, "Recreating RabbitMQ consumer channel");
                 _consumerChannel.Dispose();
                 _consumerChannel = CreateConsumerChannel();
+                StartBasicConsume();
             };
+
             _logger.LogInformation("Channel created!");
+
             return channel;
         }
 
@@ -234,13 +255,15 @@ namespace Netcool.EventBus
                     {
                         if (subscription.IsDynamic)
                         {
-                            if (!(scope.ServiceProvider.GetRequiredService(subscription.HandlerType) is IDynamicEventHandler handler))
+                            if (!(scope.ServiceProvider.GetRequiredService(subscription.HandlerType) is
+                                IDynamicEventHandler handler))
                             {
-                                throw new NullReferenceException($"Cannot find EventHandler, type {subscription.HandlerType.Name}");
+                                throw new NullReferenceException(
+                                    $"Cannot find EventHandler, type {subscription.HandlerType.Name}");
                             }
+
                             dynamic eventData = JObject.Parse(message);
 
-                            await Task.Yield();
                             await handler.Handle(eventData);
                         }
                         else
@@ -250,12 +273,15 @@ namespace Netcool.EventBus
                             var handler = scope.ServiceProvider.GetRequiredService(subscription.HandlerType);
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
 
-                            await Task.Yield();
-                            await (Task)concreteType.GetMethod("Handle").Invoke(handler, new[] { integrationEvent });
+                            await (Task) concreteType.GetMethod("Handle").Invoke(handler, new[] {integrationEvent});
                         }
                     }
                 }
                 processed = true;
+            }
+            else
+            {
+                _logger.LogWarning("No subscription for RabbitMQ event: {EventName}", eventName);
             }
 
             return processed;

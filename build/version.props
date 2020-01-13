@@ -1,6 +1,6 @@
 <Project>
 	<PropertyGroup>
-        <Version>1.0.7</Version>
+        <Version>1.0.8</Version>
         <Authors>邱尘</Authors>
         <Description>An EventBus base on Asp.net core 2.1 and RabbitMq.</Description>
         <PackageTags>EventBus,RabbitMq</PackageTags>
