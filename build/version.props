@@ -4,7 +4,7 @@
         <Authors>邱尘</Authors>
         <Description>An EventBus base on Asp.net core 2.1 and RabbitMq.</Description>
         <PackageTags>EventBus,RabbitMq</PackageTags>
-        <PackageLicenseUrl>https://github.com/NeilQ/Netcool.EventBus/blob/master/LICENSE</PackageLicenseUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/NeilQ/Netcool.EventBus</RepositoryUrl>
 	</PropertyGroup>
 </Project>
