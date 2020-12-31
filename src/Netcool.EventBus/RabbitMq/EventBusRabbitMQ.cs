@@ -4,13 +4,13 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using System;
+using System.Dynamic;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Netcool.EventBus
 {
@@ -84,7 +84,7 @@ namespace Netcool.EventBus
                 var eventName = @event.GetType().Name;
                 channel.ExchangeDeclare(exchange: _options.BrokerName, type: _exchangeType);
 
-                var message = JsonConvert.SerializeObject(@event);
+                var message = JsonSerializer.Serialize(@event, @event.GetType());
                 var body = Encoding.UTF8.GetBytes(message);
 
                 policy.Execute(() =>
@@ -134,12 +134,10 @@ namespace Netcool.EventBus
                     _persistentConnection.TryConnect();
                 }
 
-                using (var channel = _persistentConnection.CreateModel())
-                {
-                    channel.QueueBind(queue: _options.QueueName,
-                        exchange: _options.BrokerName,
-                        routingKey: eventName);
-                }
+                using var channel = _persistentConnection.CreateModel();
+                channel.QueueBind(queue: _options.QueueName,
+                    exchange: _options.BrokerName,
+                    routingKey: eventName);
             }
         }
 
@@ -262,21 +260,23 @@ namespace Netcool.EventBus
                                     $"Cannot find EventHandler, type {subscription.HandlerType.Name}");
                             }
 
-                            dynamic eventData = JObject.Parse(message);
+                            dynamic eventData = JsonSerializer.Deserialize<ExpandoObject>(message);
 
                             await handler.Handle(eventData);
                         }
                         else
                         {
                             var eventType = _subsManager.GetEventTypeByName(eventName);
-                            var integrationEvent = JsonConvert.DeserializeObject(message, eventType);
+                            var integrationEvent = JsonSerializer.Deserialize(message, eventType);
                             var handler = scope.ServiceProvider.GetRequiredService(subscription.HandlerType);
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
 
+                            // ReSharper disable once PossibleNullReferenceException
                             await (Task) concreteType.GetMethod("Handle").Invoke(handler, new[] {integrationEvent});
                         }
                     }
                 }
+
                 processed = true;
             }
             else

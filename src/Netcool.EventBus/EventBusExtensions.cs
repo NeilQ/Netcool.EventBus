@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Netcool.EventBus
 {
-    public static class EventBusExtentions
+    public static class EventBusExtensions
     {
         public static void AddEventBus<TEventBus>(this IServiceCollection services) where TEventBus : class, IEventBus
         {

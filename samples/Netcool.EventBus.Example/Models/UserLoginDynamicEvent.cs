@@ -1,6 +1,6 @@
 ﻿namespace Netcool.EventBus.Example.Models
 {
-    public class UserLoginEvent : Event
+    public class UserLoginDynamicEvent : Event
     {
         public string UserName { get; set; }
     }

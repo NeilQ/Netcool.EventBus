@@ -33,6 +33,7 @@ namespace Netcool.EventBus.Example
             });
 
             services.AddTransient<UserLoginEventHandler>();
+            services.AddTransient<UserLoginDynamicEventHandler>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -44,13 +45,11 @@ namespace Netcool.EventBus.Example
             }
 
             app.UseRouting();
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
+            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
             app.UseEventBus(eventBus =>
             {
+                eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
                 eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
             });
         }
