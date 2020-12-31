@@ -5,6 +5,11 @@
         <Description>An EventBus base on Asp.net core 2.1 and RabbitMq.</Description>
         <PackageTags>EventBus,RabbitMq</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReleaseNotes>
+            - Replace Newtonsoft.Json with System.Text.Json
+            - Add UseEventBus extension method
+            - Change TargetFramework to netstandard2.1
+        </PackageReleaseNotes>
         <RepositoryUrl>https://github.com/NeilQ/Netcool.EventBus</RepositoryUrl>
 	</PropertyGroup>
 </Project>
