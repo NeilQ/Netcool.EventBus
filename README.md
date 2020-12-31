@@ -1,11 +1,11 @@
 [中文README](README-zh.md)
 
 # Netcool.EventBus
-An EventBus base on Asp.net core 2.1 and RabbitMq. 
+An EventBus base on netstandard2.1 and RabbitMq. 
 
 Most of codes retrived from [dotnet-architecture/eShopOnContainers](https://github.com/dotnet-architecture/eShopOnContainers), however there are some changes:
 - Replace Autofac with default asp.net core ioc container.
-- Add some extention methods for adding event bus.
+- Add some extension methods for adding event bus.
 - Delayed to create rabbitmq channel for event publish.
 - Class name changed.
 
@@ -15,7 +15,7 @@ You can find it at nuget.org with id `Netcool.EventBus`.
 
 ## Add RabbitMq EventBus
 
-```csharp
+```c#
 public void ConfigureServices(IServiceCollection services)
 {
     ...
@@ -33,7 +33,7 @@ public void ConfigureServices(IServiceCollection services)
 
 ## Add Custom EventBus
 
-```csharp
+```c#
 public void ConfigureServices(IServiceCollection services)
 {
     ...
@@ -41,11 +41,9 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-**!important: You must Add any LoggerProvider**
-
 ## Publish
 
-```csharp
+```c#
 public class UserLoginEvent:Event
 {
    public string UserName { get; set; }
@@ -71,7 +69,7 @@ public class ValuesController : ControllerBase
 
 ## Subscribe
 
-```csharp
+```c#
 public class UserLoginEventHandler : IEventHandler<UserLoginEvent>
 {
    private readonly ILogger<UserLoginEventHandler> _logger;
@@ -89,13 +87,15 @@ public class UserLoginEventHandler : IEventHandler<UserLoginEvent>
 }
 ```
 
-```csharp
+```c#
 public void Configure(IApplicationBuilder app, IHostingEnvironment env)
 {        
-    app.UseMvc();
-
-    var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-    eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+    ...
+    
+    app.UseEventBus(eventBus =>
+    {
+        eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+    });
 }
 ```
 

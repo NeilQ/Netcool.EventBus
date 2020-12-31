@@ -49,8 +49,10 @@ namespace Netcool.EventBus.Example
                 endpoints.MapControllers();
             });
 
-            var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-            eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+            app.UseEventBus(eventBus =>
+            {
+                eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+            });
         }
     }
 }

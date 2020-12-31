@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Netcool.EventBus
 {
@@ -8,6 +10,12 @@ namespace Netcool.EventBus
         {
             services.AddSingleton<IEventBus, TEventBus>();
             services.AddSingleton<IEventBusSubscriptionsManager, EventBusSubscriptionsManager>();
+        }
+
+        public static void UseEventBus(this IApplicationBuilder app, Action<IEventBus> eventBus)
+        {
+            var bus = app.ApplicationServices.GetRequiredService<IEventBus>();
+            eventBus(bus);
         }
     }
 }

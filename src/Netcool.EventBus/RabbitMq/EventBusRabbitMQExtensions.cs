@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Netcool.EventBus
 {
-    public static class EventBusRabbitMQExtentions
+    public static class EventBusRabbitMQExtensions
     {
         public static void AddEventBusRabbitMq(this IServiceCollection services,
             Action<EventBusRabbitMqOptions> configureOptions)
@@ -16,5 +16,6 @@ namespace Netcool.EventBus
             services.AddEventBus<EventBusRabbitMq>();
         }
 
+      
     }
 }

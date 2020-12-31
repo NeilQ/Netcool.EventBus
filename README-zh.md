@@ -1,5 +1,5 @@
 # Netcool.EventBus
-一个基于Asp.net core 2.1与RabbitMq的事件总线。
+一个基于netstandard2.1与RabbitMq的事件总线。
 
 大部分代码来自于 [dotnet-architecture/eShopOnContainers](https://github.com/dotnet-architecture/eShopOnContainers)， 并且做了一些改动:
 - 用asp.net core内置的ioc container替换了Autofac。
@@ -31,7 +31,7 @@ public void ConfigureServices(IServiceCollection services)
 
 ## 添加自定义事件总线
 
-```csharp
+```c#
 public void ConfigureServices(IServiceCollection services)
 {
     ...
@@ -39,11 +39,9 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-**!注意: 你必须在Asp.net core项目中启用Logging**
-
 ## 发布
 
-```csharp
+```c#
 public class UserLoginEvent:Event
 {
    public string UserName { get; set; }
@@ -68,7 +66,7 @@ public class ValuesController : ControllerBase
 ```
 
 ## 订阅 
-```csharp
+```c#
 public class UserLoginEventHandler : IEventHandler<UserLoginEvent>
 {
    private readonly ILogger<UserLoginEventHandler> _logger;
@@ -86,14 +84,16 @@ public class UserLoginEventHandler : IEventHandler<UserLoginEvent>
 }
 ```
 
-```csharp
+```c#
 public void Configure(IApplicationBuilder app, IHostingEnvironment env)
 {        
-    app.UseMvc();
-
-    var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-    eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
-}
+    ...
+    
+    app.UseEventBus(eventBus =>
+    {
+        eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+    });
+ }
 ```
 
 
