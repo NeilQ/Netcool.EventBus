@@ -36,5 +36,7 @@ namespace Netcool.EventBus
         IEnumerable<SubscriptionInfo> GetHandlersForEvent(string eventName);
 
         string GetEventKey<T>();
+
+        string GetEventKey(Event @event);
     }
 }

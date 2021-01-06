@@ -99,6 +99,42 @@ public void Configure(IApplicationBuilder app, IHostingEnvironment env)
 }
 ```
 
+## Customize event name
+There's two ways to customize event name:
+
+### EventNameAttribute
+```c#
+[EventName("user-login")]
+public class UserLoginEvent:Event
+{
+   public string UserName { get; set; }
+}
+```
+
+### Dynamic Event
+```c#
+public class UserLoginDynamicEventHandler : IDynamicEventHandler
+{
+    public Task Handle(dynamic eventData)
+    {
+        Console.WriteLine($"Welcome {eventData.UserName}!");
+        return Task.FromResult(0);
+    }
+}
+```
+
+```c#
+public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+{        
+    ...
+    
+    app.UseEventBus(eventBus =>
+    {
+        eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
+    });
+}
+```
+
 
 
 

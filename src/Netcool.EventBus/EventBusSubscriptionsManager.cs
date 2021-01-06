@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Netcool.EventBus
 {
@@ -41,6 +42,7 @@ namespace Netcool.EventBus
             {
                 _handlers.Add(eventName, new List<SubscriptionInfo>());
             }
+
             if (_handlers[eventName].Any(s => s.HandlerType == handlerType))
             {
                 throw new ArgumentException(
@@ -79,6 +81,7 @@ namespace Netcool.EventBus
                     {
                         _eventTypes.Remove(eventName);
                     }
+
                     RaiseOnEventRemoved(eventName);
                 }
             }
@@ -104,8 +107,8 @@ namespace Netcool.EventBus
         }
 
         private SubscriptionInfo FindSubscriptionToRemove<T, TH>()
-             where T : Event
-             where TH : IEventHandler<T>
+            where T : Event
+            where TH : IEventHandler<T>
         {
             var eventName = GetEventKey<T>();
             return DoFindSubscriptionToRemove(eventName, typeof(TH));
@@ -117,6 +120,7 @@ namespace Netcool.EventBus
             {
                 return null;
             }
+
             return _handlers[eventName].SingleOrDefault(s => s.HandlerType == handlerType);
         }
 
@@ -132,7 +136,20 @@ namespace Netcool.EventBus
 
         public string GetEventKey<T>()
         {
+            var eventNameAttribute = typeof(T).GetTypeInfo().GetCustomAttribute<EventNameAttribute>();
+            if (eventNameAttribute != null && !string.IsNullOrWhiteSpace(eventNameAttribute.Name))
+                return eventNameAttribute.Name;
+            
             return typeof(T).Name;
+        }
+        
+        public string GetEventKey(Event @event)
+        {
+            var eventNameAttribute = @event.GetType().GetTypeInfo().GetCustomAttribute<EventNameAttribute>();
+            if (eventNameAttribute != null && !string.IsNullOrWhiteSpace(eventNameAttribute.Name))
+                return eventNameAttribute.Name;
+            
+            return @event.GetType().Name;
         }
     }
 }

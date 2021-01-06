@@ -6,19 +6,21 @@ namespace Netcore.EventBus.Test
 {
     public class UnitTest1
     {
-         [Fact]
+        [Fact]
         public void After_Creation_Should_Be_Empty()
         {
             var manager = new EventBusSubscriptionsManager();
             Assert.True(manager.IsEmpty);
         }
+
         [Fact]
         public void After_One_Event_Subscription_Should_Contain_The_Event()
         {
             var manager = new EventBusSubscriptionsManager();
-            manager.AddSubscription<TestEvent,TestEventHandler>();
+            manager.AddSubscription<TestEvent, TestEventHandler>();
             Assert.True(manager.HasSubscriptionsForEvent<TestEvent>());
         }
+
         [Fact]
         public void After_All_Subscriptions_Are_Deleted_Event_Should_No_Longer_Exists()
         {
@@ -27,6 +29,7 @@ namespace Netcore.EventBus.Test
             manager.RemoveSubscription<TestEvent, TestEventHandler>();
             Assert.False(manager.HasSubscriptionsForEvent<TestEvent>());
         }
+
         [Fact]
         public void Deleting_Last_Subscription_Should_Raise_On_Deleted_Event()
         {
@@ -48,5 +51,16 @@ namespace Netcore.EventBus.Test
             Assert.Equal(2, handlers.Count());
         }
 
+        [Fact]
+        public void Get_Event_Name()
+        {
+            var manager = new EventBusSubscriptionsManager();
+            manager.AddSubscription<TestEvent, TestEventHandler>();
+            manager.AddSubscription<NamedTestEvent, NamedTestEventHandler>();
+            Assert.Equal("TestEvent", manager.GetEventKey<TestEvent>());
+            Assert.Equal("TestEvent", manager.GetEventKey(new TestEvent()));
+            Assert.Equal("named-test-event", manager.GetEventKey<NamedTestEvent>());
+            Assert.Equal("named-test-event", manager.GetEventKey(new NamedTestEvent()));
+        }
     }
 }

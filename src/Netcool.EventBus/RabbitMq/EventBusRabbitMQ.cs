@@ -81,7 +81,7 @@ namespace Netcool.EventBus
                     });
             using (var channel = _persistentConnection.CreateModel())
             {
-                var eventName = @event.GetType().Name;
+                var eventName = _subsManager.GetEventKey(@event);
                 channel.ExchangeDeclare(exchange: _options.BrokerName, type: _exchangeType);
 
                 var message = JsonSerializer.Serialize(@event, @event.GetType());

@@ -96,6 +96,41 @@ public void Configure(IApplicationBuilder app, IHostingEnvironment env)
  }
 ```
 
+## 自定义事件名称
+有两种方式自定义事件名称
+
+### EventNameAttribute
+```c#
+[EventName("user-login")]
+public class UserLoginEvent:Event
+{
+   public string UserName { get; set; }
+}
+```
+
+### Dynamic Event
+```c#
+public class UserLoginDynamicEventHandler : IDynamicEventHandler
+{
+    public Task Handle(dynamic eventData)
+    {
+        Console.WriteLine($"Welcome {eventData.UserName}!");
+        return Task.FromResult(0);
+    }
+}
+```
+
+```c#
+public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+{        
+    ...
+    
+    app.UseEventBus(eventBus =>
+    {
+        eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
+    });
+}
+```
 
 
 
