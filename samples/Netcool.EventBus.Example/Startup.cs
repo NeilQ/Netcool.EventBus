@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Netcool.EventBus.Example.Models;
+using Netcool.EventBus.Mqtt;
+using Serilog;
 
 namespace Netcool.EventBus.Example
 {
@@ -22,6 +24,7 @@ namespace Netcool.EventBus.Example
         {
             services.AddMvc();
 
+            /*
             services.AddEventBusRabbitMq(ops =>
             {
                 ops.HostName = "localhost";
@@ -30,6 +33,19 @@ namespace Netcool.EventBus.Example
                 ops.RetryCount = 5;
                 ops.QueueName = "event_bus_queue";
                 ops.BrokerName = "event_bus";
+            });
+            */
+
+            services.AddEventBusMqtt(ops =>
+            {
+                ops.TcpIp = "localhost";
+                ops.TcpPort = 1883;
+                ops.ClientId = "test";
+                ops.Username = "";
+                ops.Password = "";
+                ops.PublishRetainedMessage = true;
+                ops.RetryCount = 5;
+                ops.CleanSession = false;
             });
 
             services.AddTransient<UserLoginEventHandler>();
@@ -43,6 +59,8 @@ namespace Netcool.EventBus.Example
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            app.UseSerilogRequestLogging();
 
             app.UseRouting();
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });

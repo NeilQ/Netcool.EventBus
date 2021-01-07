@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="../../build/version.mqtt.props" />
+    
+    <PropertyGroup>
+        <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MQTTnet" Version="3.0.13" />
+      <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="3.0.13" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Netcool.EventBus\Netcool.EventBus.csproj" />
+    </ItemGroup>
+
+</Project>

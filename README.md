@@ -1,7 +1,7 @@
 [中文README](README-zh.md)
 
 # Netcool.EventBus
-An EventBus base on netstandard2.1 and RabbitMq. 
+An EventBus base on netstandard2 supporting RabbitMq and Mqtt. 
 
 Most of codes retrived from [dotnet-architecture/eShopOnContainers](https://github.com/dotnet-architecture/eShopOnContainers), however there are some changes:
 - Replace Autofac with default asp.net core ioc container.
@@ -11,7 +11,7 @@ Most of codes retrived from [dotnet-architecture/eShopOnContainers](https://gith
 
 ## Install
 
-You can find it at nuget.org with id `Netcool.EventBus`.
+You can find it at nuget.org with id `Netcool.EventBus.RabbitMq` or ``Netcool.EventBus.Mqtt``.
 
 ## Add RabbitMq EventBus
 
@@ -28,6 +28,24 @@ public void ConfigureServices(IServiceCollection services)
        ops.BrokerName = "event_bus";
        ops.RetryCount = 5;
     });
+}
+```
+
+## Add Mqtt EventBus
+```c#
+public void ConfigureServices(IServiceCollection services)
+{
+    ...
+    services.AddEventBusMqtt(ops =>
+    {
+        ops.TcpIp = "localhost";
+        ops.TcpPort = 1883;
+        ops.ClientId = "test";
+        ops.Username = "";
+        ops.Password = "";
+        ops.PublishRetainedMessage = true;
+        ops.RetryCount = 5;
+        ops.CleanSession = false;    });
 }
 ```
 
@@ -110,6 +128,7 @@ public class UserLoginEvent:Event
    public string UserName { get; set; }
 }
 ```
+The event name equals to RoutingKey of Rabbitmq or Topic of Mqtt
 
 ### Dynamic Event
 ```c#

@@ -118,7 +118,7 @@ namespace Netcool.EventBus
             var eventName = _subsManager.GetEventKey<T>();
             DoInternalSubscription(eventName);
 
-            _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName,
+            _logger.LogInformation("Subscribing to event {EventName} with {EventHandler}", eventName,
                 typeof(TH).GetGenericTypeName());
             _subsManager.AddSubscription<T, TH>();
             StartBasicConsume();
@@ -134,10 +134,12 @@ namespace Netcool.EventBus
                     _persistentConnection.TryConnect();
                 }
 
-                using var channel = _persistentConnection.CreateModel();
-                channel.QueueBind(queue: _options.QueueName,
-                    exchange: _options.BrokerName,
-                    routingKey: eventName);
+                using (var channel = _persistentConnection.CreateModel())
+                {
+                    channel.QueueBind(queue: _options.QueueName,
+                        exchange: _options.BrokerName,
+                        routingKey: eventName);
+                }
             }
         }
 
@@ -187,7 +189,14 @@ namespace Netcool.EventBus
         private async void Consumer_Received(object model, BasicDeliverEventArgs ea)
         {
             var eventName = ea.RoutingKey;
-            var message = Encoding.UTF8.GetString(ea.Body);
+
+#if NETSTANDARD2_1
+            var message = Encoding.UTF8.GetString(ea.Body.Span);
+#else
+            var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+#endif
+
+            //  var message = Encoding.UTF8.GetString(ea.Body);
 
             var processed = false;
             try

@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
 
 namespace Netcool.EventBus.Example
 {
@@ -15,6 +17,12 @@ namespace Netcool.EventBus.Example
     {
         public static void Main(string[] args)
         {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                .WriteTo.Console()
+                .CreateLogger();
             CreateHostBuilder(args).Build().Run();
         }
 
@@ -23,9 +31,9 @@ namespace Netcool.EventBus.Example
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(serverOptions => { })
-                        .UseStartup<Startup>()
-                        .UseIISIntegration()
-                        .UseKestrel();
-                });
+                        .UseKestrel()
+                        .UseStartup<Startup>();
+                })
+                .UseSerilog();
     }
 }

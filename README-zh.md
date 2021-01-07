@@ -1,5 +1,5 @@
 # Netcool.EventBus
-一个基于netstandard2.1与RabbitMq的事件总线。
+一个基于netstandard2的事件总线, 支持RabbitMq与Mqtt。
 
 大部分代码来自于 [dotnet-architecture/eShopOnContainers](https://github.com/dotnet-architecture/eShopOnContainers)， 并且做了一些改动:
 - 用asp.net core内置的ioc container替换了Autofac。
@@ -9,7 +9,7 @@
 
 ## 安装
 
-你可以在nuget.org搜索`Netcool.EventBus`找到它。
+你可以在nuget.org搜索`Netcool.EventBus.RabbitMq`或者`Netcool.EventBus.Mqtt`找到它。
 
 ## 添加 RabbitMq 事件总线
 
@@ -26,6 +26,24 @@ public void ConfigureServices(IServiceCollection services)
        ops.BrokerName = "event_bus";
        ops.RetryCount = 5;
     });
+}
+```
+
+## 添加Mqtt事件总线
+```c#
+public void ConfigureServices(IServiceCollection services)
+{
+    ...
+    services.AddEventBusMqtt(ops =>
+    {
+        ops.TcpIp = "localhost";
+        ops.TcpPort = 1883;
+        ops.ClientId = "test";
+        ops.Username = "";
+        ops.Password = "";
+        ops.PublishRetainedMessage = true;
+        ops.RetryCount = 5;
+        ops.CleanSession = false;    });
 }
 ```
 
@@ -97,7 +115,7 @@ public void Configure(IApplicationBuilder app, IHostingEnvironment env)
 ```
 
 ## 自定义事件名称
-有两种方式自定义事件名称
+有两种方式自定义事件名称:
 
 ### EventNameAttribute
 ```c#
@@ -107,6 +125,7 @@ public class UserLoginEvent:Event
    public string UserName { get; set; }
 }
 ```
+事件名称在RabbitMq中代表RoutingKey，在Mqtt中的代表Topic
 
 ### Dynamic Event
 ```c#
