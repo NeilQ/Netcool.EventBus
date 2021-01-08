@@ -53,7 +53,7 @@ namespace Netcool.EventBus.Mqtt
             var client = _persistentConnection.GetClient();
             var eventName = _subsManager.GetEventKey(@event);
 
-            var message = JsonSerializer.Serialize(@event, @event.GetType());
+            var message = JsonSerializer.Serialize(@event, @event.GetType(), _options.JsonSerializerOptions);
 
             policy.Execute(() =>
             {
@@ -168,14 +168,16 @@ namespace Netcool.EventBus.Mqtt
                                     $"Cannot find EventHandler, type {subscription.HandlerType.Name}");
                             }
 
-                            dynamic eventData = JsonSerializer.Deserialize<ExpandoObject>(message);
+                            dynamic eventData =
+                                JsonSerializer.Deserialize<ExpandoObject>(message, _options.JsonSerializerOptions);
 
                             await handler.Handle(eventData);
                         }
                         else
                         {
                             var eventType = _subsManager.GetEventTypeByName(eventName);
-                            var integrationEvent = JsonSerializer.Deserialize(message, eventType);
+                            var integrationEvent =
+                                JsonSerializer.Deserialize(message, eventType, _options.JsonSerializerOptions);
                             var handler = scope.ServiceProvider.GetRequiredService(subscription.HandlerType);
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
 

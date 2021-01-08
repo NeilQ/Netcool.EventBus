@@ -84,7 +84,7 @@ namespace Netcool.EventBus
                 var eventName = _subsManager.GetEventKey(@event);
                 channel.ExchangeDeclare(exchange: _options.BrokerName, type: _exchangeType);
 
-                var message = JsonSerializer.Serialize(@event, @event.GetType());
+                var message = JsonSerializer.Serialize(@event, @event.GetType(), _options.JsonSerializerOptions);
                 var body = Encoding.UTF8.GetBytes(message);
 
                 policy.Execute(() =>
@@ -269,14 +269,16 @@ namespace Netcool.EventBus
                                     $"Cannot find EventHandler, type {subscription.HandlerType.Name}");
                             }
 
-                            dynamic eventData = JsonSerializer.Deserialize<ExpandoObject>(message);
+                            dynamic eventData =
+                                JsonSerializer.Deserialize<ExpandoObject>(message, _options.JsonSerializerOptions);
 
                             await handler.Handle(eventData);
                         }
                         else
                         {
                             var eventType = _subsManager.GetEventTypeByName(eventName);
-                            var integrationEvent = JsonSerializer.Deserialize(message, eventType);
+                            var integrationEvent =
+                                JsonSerializer.Deserialize(message, eventType, _options.JsonSerializerOptions);
                             var handler = scope.ServiceProvider.GetRequiredService(subscription.HandlerType);
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
 

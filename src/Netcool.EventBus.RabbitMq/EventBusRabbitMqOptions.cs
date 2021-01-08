@@ -1,6 +1,6 @@
 ﻿namespace Netcool.EventBus
 {
-    public class EventBusRabbitMqOptions
+    public class EventBusRabbitMqOptions: EventBusOptions
     {
         public string HostName { get; set; }
 

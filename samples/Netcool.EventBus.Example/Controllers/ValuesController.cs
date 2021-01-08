@@ -18,8 +18,8 @@ namespace Netcool.EventBus.Example.Controllers
         [HttpGet]
         public ActionResult Get()
         {
-
             _eventBus.Publish(new UserLoginEvent() { UserName = "Peppa" });
+            _eventBus.Publish(new UserLoginEvent() { UserName = "佩奇" });
             _eventBus.Publish(new UserLoginDynamicEvent(){UserName = "Dad"});
 
             return Ok();

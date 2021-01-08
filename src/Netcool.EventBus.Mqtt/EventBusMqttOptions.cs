@@ -1,6 +1,6 @@
 ﻿namespace Netcool.EventBus.Mqtt
 {
-    public class EventBusMqttOptions
+    public class EventBusMqttOptions: EventBusOptions
     {
         public string ClientId { get; set; }
 

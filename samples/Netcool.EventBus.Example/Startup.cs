@@ -24,7 +24,6 @@ namespace Netcool.EventBus.Example
         {
             services.AddMvc();
 
-            /*
             services.AddEventBusRabbitMq(ops =>
             {
                 ops.HostName = "localhost";
@@ -33,9 +32,10 @@ namespace Netcool.EventBus.Example
                 ops.RetryCount = 5;
                 ops.QueueName = "event_bus_queue";
                 ops.BrokerName = "event_bus";
+                //ops.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             });
-            */
 
+            /*
             services.AddEventBusMqtt(ops =>
             {
                 ops.TcpIp = "localhost";
@@ -47,6 +47,7 @@ namespace Netcool.EventBus.Example
                 ops.RetryCount = 5;
                 ops.CleanSession = false;
             });
+            */
 
             services.AddTransient<UserLoginEventHandler>();
             services.AddTransient<UserLoginDynamicEventHandler>();
