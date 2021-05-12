@@ -43,6 +43,7 @@ namespace Netcool.EventBus
             {
                 throw new InvalidOperationException("No RabbitMQ connections are available to perform this action");
             }
+
             return _connection.CreateModel();
         }
 
@@ -71,15 +72,26 @@ namespace Netcool.EventBus
                     // prevent duplicated concurrent re-connection
                     return true;
                 }
-                var policy = Policy.Handle<SocketException>()
-                    .Or<BrokerUnreachableException>()
-                    .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
-                    {
-                        _logger.LogWarning(ex, "RabbitMQ Client could not connect after {TimeOut}s ({ExceptionMessage})", $"{time.TotalSeconds:n1}", ex.Message);
-                    }
-                );
 
-                policy.Execute(() => { _connection = _connectionFactory.CreateConnection(); });
+                var retry = Policy.Handle<SocketException>()
+                    .Or<BrokerUnreachableException>()
+                    .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(1),
+                        (ex, time) =>
+                        {
+                            _logger.LogWarning(
+                                "RabbitMQ Client could not connect after {TimeOut}s ({ExceptionMessage})",
+                                $"{time.TotalSeconds:n1}", ex.Message);
+                        }
+                    );
+                var fallback = Policy.Handle<Exception>()
+                    .Fallback(() => { },
+                        ex =>
+                        {
+                            _logger.LogError(ex, "FATAL ERROR: RabbitMQ connections could not be created and opened");
+                        });
+
+                fallback.Wrap(retry).Execute(() => { _connection = _connectionFactory.CreateConnection(); });
+
 
                 if (IsConnected)
                 {
@@ -87,12 +99,14 @@ namespace Netcool.EventBus
                     _connection.CallbackException += OnCallbackException;
                     _connection.ConnectionBlocked += OnConnectionBlocked;
 
-                    _logger.LogInformation("RabbitMQ acquired a persistent connection to '{HostName}' and is subscribed to failure events", _connection.Endpoint.HostName);
+                    _logger.LogInformation(
+                        "RabbitMQ acquired a persistent connection to '{HostName}' and is subscribed to failure events",
+                        _connection.Endpoint.HostName);
 
                     return true;
                 }
 
-                _logger.LogCritical("FATAL ERROR: RabbitMQ connections could not be created and opened");
+                _logger.LogError("FATAL ERROR: RabbitMQ connections could not be created and opened");
                 return false;
             }
         }
