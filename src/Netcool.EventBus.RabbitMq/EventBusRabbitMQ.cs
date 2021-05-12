@@ -40,7 +40,6 @@ namespace Netcool.EventBus
 
             _options = options.Value;
             _exchangeType = "direct";
-            _consumerChannel = CreateConsumerChannel();
             _subsManager.OnEventRemoved += SubsManager_OnEventRemoved;
         }
 
@@ -48,7 +47,7 @@ namespace Netcool.EventBus
         {
             if (!_persistentConnection.IsConnected)
             {
-                _persistentConnection.TryConnect();
+                if (!_persistentConnection.TryConnect()) return;
             }
 
             using (var channel = _persistentConnection.CreateModel())
@@ -67,28 +66,35 @@ namespace Netcool.EventBus
         {
             if (!_persistentConnection.IsConnected)
             {
-                _persistentConnection.TryConnect();
+                if (!_persistentConnection.TryConnect())
+                {
+                    _logger.LogError("Could not publish event: {EventId}", @event.Id);
+                    return;
+                }
             }
 
-            var policy = Policy.Handle<BrokerUnreachableException>()
+            var retry = Policy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
-                .WaitAndRetry(_options.RetryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                .WaitAndRetry(_options.RetryCount, retryAttempt => TimeSpan.FromSeconds(1),
                     (ex, time) =>
                     {
                         _logger.LogWarning(ex,
                             "Could not publish event: {EventId} after {Timeout}s ({ExceptionMessage})", @event.Id,
                             $"{time.TotalSeconds:n1}", ex.Message);
                     });
-            using (var channel = _persistentConnection.CreateModel())
+            var fallback = Policy.Handle<Exception>()
+                .Fallback(() => { }, ex => { _logger.LogError(ex, "Could not publish event: {EventId}", @event.Id); });
+
+            fallback.Wrap(retry).Execute(() =>
             {
-                var eventName = _subsManager.GetEventKey(@event);
-                channel.ExchangeDeclare(exchange: _options.BrokerName, type: _exchangeType);
-
-                var message = JsonSerializer.Serialize(@event, @event.GetType(), _options.JsonSerializerOptions);
-                var body = Encoding.UTF8.GetBytes(message);
-
-                policy.Execute(() =>
+                using (var channel = _persistentConnection.CreateModel())
                 {
+                    var eventName = _subsManager.GetEventKey(@event);
+                    channel.ExchangeDeclare(exchange: _options.BrokerName, type: _exchangeType);
+
+                    var message =
+                        JsonSerializer.Serialize(@event, @event.GetType(), _options.JsonSerializerOptions);
+                    var body = Encoding.UTF8.GetBytes(message);
                     var properties = channel.CreateBasicProperties();
                     properties.DeliveryMode = 2; // persistent
                     channel.BasicPublish(exchange: _options.BrokerName,
@@ -96,13 +102,14 @@ namespace Netcool.EventBus
                         mandatory: true,
                         basicProperties: properties,
                         body: body);
-                });
-            }
+                }
+            });
         }
 
         public void SubscribeDynamic<TH>(string eventName)
             where TH : IDynamicEventHandler
         {
+            _consumerChannel = CreateConsumerChannel();
             DoInternalSubscription(eventName);
 
             _logger.LogInformation("Subscribing to dynamic event {EventName} with {EventHandler}", eventName,
@@ -115,6 +122,7 @@ namespace Netcool.EventBus
             where T : Event
             where TH : IEventHandler<T>
         {
+            _consumerChannel = CreateConsumerChannel();
             var eventName = _subsManager.GetEventKey<T>();
             DoInternalSubscription(eventName);
 
@@ -127,19 +135,17 @@ namespace Netcool.EventBus
         private void DoInternalSubscription(string eventName)
         {
             var containsKey = _subsManager.HasSubscriptionsForEvent(eventName);
-            if (!containsKey)
+            if (containsKey) return;
+            if (!_persistentConnection.IsConnected)
             {
-                if (!_persistentConnection.IsConnected)
-                {
-                    _persistentConnection.TryConnect();
-                }
+                if (!_persistentConnection.TryConnect()) return;
+            }
 
-                using (var channel = _persistentConnection.CreateModel())
-                {
-                    channel.QueueBind(queue: _options.QueueName,
-                        exchange: _options.BrokerName,
-                        routingKey: eventName);
-                }
+            using (var channel = _persistentConnection.CreateModel())
+            {
+                channel.QueueBind(queue: _options.QueueName,
+                    exchange: _options.BrokerName,
+                    routingKey: eventName);
             }
         }
 
@@ -196,33 +202,30 @@ namespace Netcool.EventBus
             var message = Encoding.UTF8.GetString(ea.Body.ToArray());
 #endif
 
-            //  var message = Encoding.UTF8.GetString(ea.Body);
-
-            var processed = false;
             try
             {
-                processed = await ProcessEvent(eventName, message);
+                var processed = await ProcessEvent(eventName, message);
+                if (processed)
+                {
+                    _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
+                }
+                else
+                {
+                    _consumerChannel.BasicNack(ea.DeliveryTag, false, true);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "----- ERROR Processing message \"{Message}\"", message);
             }
-
-            if (processed)
-            {
-                _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
-            }
-            else
-            {
-                _consumerChannel.BasicNack(ea.DeliveryTag, false, true);
-            }
         }
 
         private IModel CreateConsumerChannel()
         {
+            if (_consumerChannel != null) return _consumerChannel;
             if (!_persistentConnection.IsConnected)
             {
-                _persistentConnection.TryConnect();
+                if (!_persistentConnection.TryConnect()) return null;
             }
 
             _logger.LogTrace("Creating RabbitMQ consumer channel");

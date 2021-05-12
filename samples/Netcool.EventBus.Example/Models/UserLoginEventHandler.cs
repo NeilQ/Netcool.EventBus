@@ -16,7 +16,6 @@ namespace Netcool.EventBus.Example.Models
 
         public Task Handle(UserLoginEvent @event)
         {
-            Console.WriteLine($"Welcome {@event.UserName}!");
             _logger.LogInformation($"Welcome {@event.UserName}!");
             return Task.FromResult(0);
         }
