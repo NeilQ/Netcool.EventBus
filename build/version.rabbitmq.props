@@ -6,8 +6,9 @@
         <PackageTags>EventBus,RabbitMq</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReleaseNotes>
-            - Update packages.
-            - Fix an issue that will cause app crash if connect failed.
+            - Stop throwing exception when subscribe duplicate event.
+            - Add HandleSynchronously and UnbindOnUnsubscribe EventBusRabbitMqOptions.
+            - Dispose consume channel when the subscribe list is empty.
         </PackageReleaseNotes>
         <RepositoryUrl>https://github.com/NeilQ/Netcool.EventBus</RepositoryUrl>
 	</PropertyGroup>
