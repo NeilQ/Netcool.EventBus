@@ -36,7 +36,7 @@ namespace Netcool.EventBus
             _services = services;
             _persistentConnection =
                 persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection));
-            _subsManager = subsManager ?? new EventBusSubscriptionsManager();
+            _subsManager = subsManager;
 
             _options = options.Value;
             _exchangeType = "direct";
@@ -52,12 +52,18 @@ namespace Netcool.EventBus
 
             using (var channel = _persistentConnection.CreateModel())
             {
-                channel.QueueUnbind(queue: _options.QueueName,
-                    exchange: _options.BrokerName,
-                    routingKey: eventName);
+                if (_options.UnbindOnUnsubscribe)
+                {
+                    channel.QueueUnbind(queue: _options.QueueName,
+                        exchange: _options.BrokerName,
+                        routingKey: eventName);
+                }
+
                 if (_subsManager.IsEmpty)
                 {
                     _consumerChannel.Close();
+                    _consumerChannel.Dispose();
+                    _consumerChannel = null;
                 }
             }
         }
@@ -204,7 +210,10 @@ namespace Netcool.EventBus
 
             try
             {
-                var processed = await ProcessEvent(eventName, message);
+                var processed = _options.HandleSynchronously
+                    ? ProcessEvent(eventName, message).GetAwaiter().GetResult()
+                    : await ProcessEvent(eventName, message);
+
                 if (processed)
                 {
                     _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
@@ -243,7 +252,7 @@ namespace Netcool.EventBus
             channel.CallbackException += (sender, ea) =>
             {
                 _logger.LogWarning(ea.Exception, "Recreating RabbitMQ consumer channel");
-                _consumerChannel.Dispose();
+                _consumerChannel?.Dispose();
                 _consumerChannel = CreateConsumerChannel();
                 StartBasicConsume();
             };
@@ -266,7 +275,7 @@ namespace Netcool.EventBus
                         if (subscription.IsDynamic)
                         {
                             if (!(scope.ServiceProvider.GetRequiredService(subscription.HandlerType) is
-                                IDynamicEventHandler handler))
+                                    IDynamicEventHandler handler))
                             {
                                 throw new NullReferenceException(
                                     $"Cannot find EventHandler, type {subscription.HandlerType.Name}");
@@ -286,7 +295,7 @@ namespace Netcool.EventBus
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
 
                             // ReSharper disable once PossibleNullReferenceException
-                            await (Task) concreteType.GetMethod("Handle").Invoke(handler, new[] {integrationEvent});
+                            await (Task)concreteType.GetMethod("Handle").Invoke(handler, new[] { integrationEvent });
                         }
                     }
                 }

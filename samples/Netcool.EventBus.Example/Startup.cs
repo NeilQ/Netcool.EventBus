@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Netcool.EventBus.Example.Models;
-using Netcool.EventBus.Mqtt;
 using Serilog;
 
 namespace Netcool.EventBus.Example
@@ -32,6 +31,8 @@ namespace Netcool.EventBus.Example
                 ops.RetryCount = 5;
                 ops.QueueName = "event_bus_queue";
                 ops.BrokerName = "event_bus";
+                ops.HandleSynchronously = false;
+                ops.UnbindOnUnsubscribe = true;
                 //ops.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             });
 
@@ -51,6 +52,7 @@ namespace Netcool.EventBus.Example
 
             services.AddTransient<UserLoginEventHandler>();
             services.AddTransient<UserLoginDynamicEventHandler>();
+            services.AddTransient<ExceptionEventHandler>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -68,8 +70,8 @@ namespace Netcool.EventBus.Example
 
             app.UseEventBus(eventBus =>
             {
-                eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
-                eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+                //eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
+                //eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
             });
         }
     }

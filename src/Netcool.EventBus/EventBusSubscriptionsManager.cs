@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 
 namespace Netcool.EventBus
 {
@@ -10,9 +11,11 @@ namespace Netcool.EventBus
         private readonly Dictionary<string, List<SubscriptionInfo>> _handlers;
         private readonly Dictionary<string, Type> _eventTypes;
         public event EventHandler<string> OnEventRemoved;
+        private readonly ILogger<EventBusSubscriptionsManager> _logger;
 
-        public EventBusSubscriptionsManager()
+        public EventBusSubscriptionsManager(ILogger<EventBusSubscriptionsManager> logger)
         {
+            _logger = logger;
             _handlers = new Dictionary<string, List<SubscriptionInfo>>();
             _eventTypes = new Dictionary<string, Type>();
         }
@@ -33,7 +36,7 @@ namespace Netcool.EventBus
         {
             var eventName = GetEventKey<T>();
             DoAddSubscription(typeof(TH), eventName, false);
-            _eventTypes.Add(eventName, typeof(T));
+            if (!_eventTypes.ContainsKey(eventName)) _eventTypes.Add(eventName, typeof(T));
         }
 
         private void DoAddSubscription(Type handlerType, string eventName, bool isDynamic)
@@ -45,8 +48,9 @@ namespace Netcool.EventBus
 
             if (_handlers[eventName].Any(s => s.HandlerType == handlerType))
             {
-                throw new ArgumentException(
-                    $"Handler Type {handlerType.Name} already registered for '{eventName}'", nameof(handlerType));
+                _logger.LogWarning("Handler Type {HandlerTypeName} already registered for \'{EventName}\'",
+                    handlerType.Name, eventName);
+                return;
             }
 
             _handlers[eventName]
@@ -139,16 +143,16 @@ namespace Netcool.EventBus
             var eventNameAttribute = typeof(T).GetTypeInfo().GetCustomAttribute<EventNameAttribute>();
             if (eventNameAttribute != null && !string.IsNullOrWhiteSpace(eventNameAttribute.Name))
                 return eventNameAttribute.Name;
-            
+
             return typeof(T).Name;
         }
-        
+
         public string GetEventKey(Event @event)
         {
             var eventNameAttribute = @event.GetType().GetTypeInfo().GetCustomAttribute<EventNameAttribute>();
             if (eventNameAttribute != null && !string.IsNullOrWhiteSpace(eventNameAttribute.Name))
                 return eventNameAttribute.Name;
-            
+
             return @event.GetType().Name;
         }
     }

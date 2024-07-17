@@ -29,7 +29,7 @@ namespace Netcool.EventBus.Mqtt
             _services = services;
             _logger = logger;
             _persistentConnection = persistentConnection;
-            _subsManager = subsManager ?? new EventBusSubscriptionsManager();
+            _subsManager = subsManager;
             _options = options.Value;
 
             StartMessageHandler();
@@ -162,7 +162,7 @@ namespace Netcool.EventBus.Mqtt
                         if (subscription.IsDynamic)
                         {
                             if (!(scope.ServiceProvider.GetRequiredService(subscription.HandlerType) is
-                                IDynamicEventHandler handler))
+                                    IDynamicEventHandler handler))
                             {
                                 throw new NullReferenceException(
                                     $"Cannot find EventHandler, type {subscription.HandlerType.Name}");
@@ -182,7 +182,7 @@ namespace Netcool.EventBus.Mqtt
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
 
                             // ReSharper disable once PossibleNullReferenceException
-                            await (Task) concreteType.GetMethod("Handle").Invoke(handler, new[] {integrationEvent});
+                            await (Task)concreteType.GetMethod("Handle").Invoke(handler, new[] { integrationEvent });
                         }
                     }
                 }

@@ -9,14 +9,14 @@ namespace Netcore.EventBus.Test
         [Fact]
         public void After_Creation_Should_Be_Empty()
         {
-            var manager = new EventBusSubscriptionsManager();
+            var manager = new EventBusSubscriptionsManager(null);
             Assert.True(manager.IsEmpty);
         }
 
         [Fact]
         public void After_One_Event_Subscription_Should_Contain_The_Event()
         {
-            var manager = new EventBusSubscriptionsManager();
+            var manager = new EventBusSubscriptionsManager(null);
             manager.AddSubscription<TestEvent, TestEventHandler>();
             Assert.True(manager.HasSubscriptionsForEvent<TestEvent>());
         }
@@ -24,7 +24,7 @@ namespace Netcore.EventBus.Test
         [Fact]
         public void After_All_Subscriptions_Are_Deleted_Event_Should_No_Longer_Exists()
         {
-            var manager = new EventBusSubscriptionsManager();
+            var manager = new EventBusSubscriptionsManager(null);
             manager.AddSubscription<TestEvent, TestEventHandler>();
             manager.RemoveSubscription<TestEvent, TestEventHandler>();
             Assert.False(manager.HasSubscriptionsForEvent<TestEvent>());
@@ -34,7 +34,7 @@ namespace Netcore.EventBus.Test
         public void Deleting_Last_Subscription_Should_Raise_On_Deleted_Event()
         {
             bool raised = false;
-            var manager = new EventBusSubscriptionsManager();
+            var manager = new EventBusSubscriptionsManager(null);
             manager.OnEventRemoved += (o, e) => raised = true;
             manager.AddSubscription<TestEvent, TestEventHandler>();
             manager.RemoveSubscription<TestEvent, TestEventHandler>();
@@ -44,7 +44,7 @@ namespace Netcore.EventBus.Test
         [Fact]
         public void Get_Handlers_For_Event_Should_Return_All_Handlers()
         {
-            var manager = new EventBusSubscriptionsManager();
+            var manager = new EventBusSubscriptionsManager(null);
             manager.AddSubscription<TestEvent, TestEventHandler>();
             manager.AddSubscription<TestEvent, TestOtherEventHandler>();
             var handlers = manager.GetHandlersForEvent<TestEvent>();
@@ -54,7 +54,7 @@ namespace Netcore.EventBus.Test
         [Fact]
         public void Get_Event_Name()
         {
-            var manager = new EventBusSubscriptionsManager();
+            var manager = new EventBusSubscriptionsManager(null);
             manager.AddSubscription<TestEvent, TestEventHandler>();
             manager.AddSubscription<NamedTestEvent, NamedTestEventHandler>();
             Assert.Equal("TestEvent", manager.GetEventKey<TestEvent>());
