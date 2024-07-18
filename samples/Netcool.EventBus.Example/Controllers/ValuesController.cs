@@ -22,6 +22,7 @@ namespace Netcool.EventBus.Example.Controllers
             _eventBus.Publish(new UserLoginEvent() { UserName = "Peppa" });
             _eventBus.Publish(new UserLoginEvent() { UserName = "佩奇" });
             _eventBus.Publish(new UserLoginDynamicEvent() { UserName = "Dad" });
+            _eventBus.Publish(new ExceptionEvent());
 
             return Ok();
         }

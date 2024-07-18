@@ -155,5 +155,6 @@ namespace Netcool.EventBus
 
             return @event.GetType().Name;
         }
+        
     }
 }

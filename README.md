@@ -27,9 +27,26 @@ public void ConfigureServices(IServiceCollection services)
        ops.QueueName = "event_bus_queue";
        ops.BrokerName = "event_bus";
        ops.RetryCount = 5;
+       ops.HandleSynchronously = false;
+       ops.UnbindOnUnsubscribe = true;
+       ops.QueueArguments = new QueueArguments
+       {
+           MessageTTL = 3 * 24 * 3600 * 1000,
+           Expires =  10 * 24 * 3600 * 1000,
+           MaxLength = 1000000,
+           MaxLengthBytes = 1024*1024 // 1MiB
+       };
     });
 }
 ```
+
+#### HandleSynchronously
+Whether to handle the event synchronously, default false. If set to true, all the events will be handled synchronously.
+
+#### UnbindOnUnsubscribe
+Whether to unbind the queue when unsubscribing, default false. If set to true, the routing key will be unbound with the queue when unsubscribed.
+
+**Be cautious** when setting to false, the queue will continue receiving messages even if there is no handler which will eat the memory.
 
 ## Add Mqtt EventBus
 ```c#
@@ -45,7 +62,8 @@ public void ConfigureServices(IServiceCollection services)
         ops.Password = "";
         ops.PublishRetainedMessage = true;
         ops.RetryCount = 5;
-        ops.CleanSession = false;    });
+        ops.CleanSession = false;    
+    });
 }
 ```
 

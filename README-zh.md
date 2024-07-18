@@ -25,9 +25,30 @@ public void ConfigureServices(IServiceCollection services)
        ops.QueueName = "event_bus_queue";
        ops.BrokerName = "event_bus";
        ops.RetryCount = 5;
+       ops.HandleSynchronously = false;
+       ops.UnbindOnUnsubscribe = true;
+       ops.QueueArguments = new QueueArguments
+       {
+           MessageTTL = 3 * 24 * 3600 * 1000,
+           Expires =  10 * 24 * 3600 * 1000,
+           MaxLength = 1000000,
+           MaxLengthBytes = 1024*1024 // 1MiB
+       };
     });
 }
 ```
+
+#### HandleSynchronously
+是否同步处理事件，默认为false。如果设置为true，所有事件都将同步处理。
+
+#### UnbindOnUnsubscribe
+是否在取消订阅时解绑队列，默认为true。如果设置为false，当取消订阅时不会解绑队列和routingKey。
+
+**请谨慎**将其设置为false，即使没有对应的EventHandler，队列也会继续接收消息，可能大量消耗消息队列服务器内存。
+
+### 消息恢复机制
+当`EventHandler`抛出异常时，`EventBus`会将消息放入死信队列。当取消订阅所有事件后，ConsumeChannel会释放，并在重新注册任意事件之后
+
 
 ## 添加Mqtt事件总线
 ```c#
@@ -43,7 +64,8 @@ public void ConfigureServices(IServiceCollection services)
         ops.Password = "";
         ops.PublishRetainedMessage = true;
         ops.RetryCount = 5;
-        ops.CleanSession = false;    });
+        ops.CleanSession = false;    
+    });
 }
 ```
 

@@ -15,7 +15,7 @@ namespace Netcool.EventBus.Example.Models
         public async Task Handle(ExceptionEvent @event)
         {
             await Task.Delay(2000);
-            _eventBus.Unsubscribe<ExceptionEvent, ExceptionEventHandler>();
+            //_eventBus.Unsubscribe<ExceptionEvent, ExceptionEventHandler>();
             throw new Exception("This is an exception event: " + @event.Id);
         }
     }

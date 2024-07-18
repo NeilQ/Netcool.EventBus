@@ -4,8 +4,10 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using System;
+using System.Collections.Generic;
 using System.Dynamic;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -103,6 +105,12 @@ namespace Netcool.EventBus
                     var body = Encoding.UTF8.GetBytes(message);
                     var properties = channel.CreateBasicProperties();
                     properties.DeliveryMode = 2; // persistent
+
+                    var expirationAttribute =
+                        @event.GetType().GetTypeInfo().GetCustomAttribute<MessagePropertiesAttribute>();
+                    if (expirationAttribute != null && expirationAttribute.Expiration > 0)
+                        properties.Expiration = expirationAttribute.Expiration.ToString();
+
                     channel.BasicPublish(exchange: _options.BrokerName,
                         routingKey: eventName,
                         mandatory: true,
@@ -242,12 +250,26 @@ namespace Netcool.EventBus
 
             channel.ExchangeDeclare(exchange: _options.BrokerName,
                 type: _exchangeType);
+
+            var arguments = new Dictionary<string, object>();
+            if (_options.QueueArguments != null)
+            {
+                if (_options.QueueArguments.MessageTTL > 0)
+                    arguments.Add("x-message-ttl", _options.QueueArguments.MessageTTL);
+                if (_options.QueueArguments.Expires > 0)
+                    arguments.Add("x-expires", _options.QueueArguments.Expires);
+                if (_options.QueueArguments.MaxLength > 0)
+                    arguments.Add("x-max-length", _options.QueueArguments.MaxLength);
+                if (_options.QueueArguments.MaxLengthBytes > 0)
+                    arguments.Add("x-max-length-bytes", _options.QueueArguments.MaxLengthBytes);
+            }
+
             channel.QueueDeclare(queue: _options.QueueName,
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
-                arguments: null);
-            _logger.LogInformation($"Queue [{_options.QueueName}] declared");
+                arguments: arguments);
+            _logger.LogInformation("Queue [{OptionsQueueName}] declared", _options.QueueName);
 
             channel.CallbackException += (sender, ea) =>
             {

@@ -33,6 +33,13 @@ namespace Netcool.EventBus.Example
                 ops.BrokerName = "event_bus";
                 ops.HandleSynchronously = false;
                 ops.UnbindOnUnsubscribe = true;
+                ops.QueueArguments = new QueueArguments
+                {
+                    MessageTTL = 3 * 24 * 3600 * 1000,
+                    Expires =  10 * 24 * 3600 * 1000,
+                    //MaxLength = 1000000,
+                    //MaxLengthBytes = 1024*1024 // 1MiB
+                };
                 //ops.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             });
 
@@ -70,8 +77,9 @@ namespace Netcool.EventBus.Example
 
             app.UseEventBus(eventBus =>
             {
-                //eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
-                //eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+                eventBus.SubscribeDynamic<UserLoginDynamicEventHandler>("UserLoginDynamicEvent");
+                eventBus.Subscribe<UserLoginEvent, UserLoginEventHandler>();
+                //eventBus.Subscribe<ExceptionEvent,ExceptionEventHandler>();
             });
         }
     }
